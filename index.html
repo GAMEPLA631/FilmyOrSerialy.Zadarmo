@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberglass CinePlayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --glass-bg: rgba(15, 15, 25, 0.7);
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a12 100%);
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .cyber-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+        }
+
+        .neon-border {
+            position: relative;
+        }
+
+        .neon-border::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            z-index: -1;
+            border-radius: 17px;
+            opacity: 0.3;
+            filter: blur(5px);
+        }
+
+        .video-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            aspect-ratio: 16/9;
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Custom Controls */
+        .controls-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .video-container:hover .controls-overlay {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            cursor: pointer;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .progress-filled {
+            height: 100%;
+            background: var(--neon-blue);
+            width: 0%;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .btn-cyber {
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .btn-cyber:hover {
+            background: var(--neon-blue);
+            color: #000;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        .quality-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border: 1px solid var(--neon-purple);
+            color: var(--neon-purple);
+            border-radius: 4px;
+        }
+
+        .movie-card {
+            transition: transform 0.3s, border-color 0.3s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .movie-card:hover {
+            transform: scale(1.03);
+            border-color: var(--neon-blue);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .active-movie {
+            border-color: var(--neon-blue);
+            background: rgba(0, 243, 255, 0.1);
+        }
+
+        /* Skryť input file */
+        #fileInput {
+            display: none;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--neon-purple); border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl cyber-font font-bold tracking-tighter italic">
+                CYBER<span class="text-cyan-400">GLASS</span> TV
+            </h1>
+            <div class="flex gap-4">
+                <!-- Tlačidlo na pridanie vlastného súboru -->
+                <label for="fileInput" class="btn-cyber text-sm">
+                    <span>📁</span> OTVORIŤ SÚBOR
+                </label>
+                <input type="file" id="fileInput" accept="video/*">
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            
+            <!-- Main Player Section -->
+            <div class="lg:col-span-3 space-y-6">
+                <div class="neon-border">
+                    <div class="video-container glass-panel" id="mainPlayerContainer">
+                        <video id="mainVideo" poster="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000">
+                            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                        </video>
+                        
+                        <!-- UI Overlay -->
+                        <div class="controls-overlay">
+                            <div class="progress-bar" id="progressBar">
+                                <div class="progress-filled" id="progressFilled"></div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-6">
+                                    <button id="playBtn" class="text-2xl hover:text-cyan-400 transition">▶</button>
+                                    <div class="text-sm font-mono" id="timeDisplay">00:00 / 00:00</div>
+                                    <input type="range" id="volumeSlider" class="w-20 accent-cyan-400" min="0" max="1" step="0.1" value="1">
+                                </div>
+                                
+                                <div class="flex items-center gap-4">
+                                    <!-- Quality Selector -->
+                                    <div class="relative group">
+                                        <button class="text-xs border border-gray-500 px-2 py-1 rounded hover:border-cyan-400" id="qualityBtn">AUTO</button>
+                                        <div class="absolute bottom-full mb-2 right-0 glass-panel p-2 hidden group-hover:block w-24 text-center">
+                                            <div class="py-1 hover:text-cyan-400 cursor-pointer text-sm" onclick="setQuality('4K')">4K</div>
+                                            <div class="py-1 text-cyan-400 cursor-pointer text-sm font-bold" onclick="setQuality('1080p')">1080p</div>
+                                            <div class="py-1 hover:text-cyan-400 cursor-pointer text-sm" onclick="setQuality('720p')">720p</div>
+                                            <div class="py-1 hover:text-cyan-400 cursor-pointer text-sm" onclick="setQuality('AUTO')">AUTO</div>
+                                        </div>
+                                    </div>
+                                    <button id="fullscreenBtn" class="text-xl hover:text-cyan-400">⛶</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Section -->
+                <div class="glass-panel p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-2xl cyber-font font-bold mb-1" id="movieTitle">Big Buck Bunny</h2>
+                            <p class="text-gray-400 text-sm" id="movieMeta">Sci-Fi • 2024 • Ukážka</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="bg-white/10 p-2 rounded hover:bg-white/20">❤</button>
+                            <button class="bg-white/10 p-2 rounded hover:bg-white/20">↗</button>
+                        </div>
+                    </div>
+                    <p class="text-gray-300 leading-relaxed" id="movieDesc">
+                        Vstúpte do sveta neónových snov. Epický príbeh o prežití v dystopickej budúcnosti, kde technológia prekročila hranice ľudskosti. Vizuálny zážitok s podporou priestorového zvuku a dynamického osvetlenia.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Sidebar Library -->
+            <div class="lg:col-span-1 space-y-4">
+                <h3 class="cyber-font text-lg border-l-4 border-cyan-400 pl-3">MIESTNA KNIŽNICA</h3>
+                
+                <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2" id="libraryList">
+                    <!-- Default Video -->
+                    <div class="movie-card glass-panel p-3 flex gap-3 active-movie" onclick="changeMovie(this, 'Big Buck Bunny', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')">
+                        <div class="w-20 h-28 bg-gray-800 rounded overflow-hidden shrink-0">
+                            <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=200" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <span class="quality-badge mb-2 inline-block">4K</span>
+                            <h4 class="font-bold text-sm">Big Buck Bunny</h4>
+                            <p class="text-xs text-gray-400 mt-1">Vstavané</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Dynamicky pridané súbory sa objavia tu -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('mainVideo');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFilled = document.getElementById('progressFilled');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const qualityBtn = document.getElementById('qualityBtn');
+        const movieTitle = document.getElementById('movieTitle');
+        const movieMeta = document.getElementById('movieMeta');
+        const movieDesc = document.getElementById('movieDesc');
+        const fileInput = document.getElementById('fileInput');
+        const libraryList = document.getElementById('libraryList');
+
+        // Play / Pause Logic
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+                playBtn.innerText = '⏸';
+            } else {
+                video.pause();
+                playBtn.innerText = '▶';
+            }
+        }
+
+        playBtn.addEventListener('click', togglePlay);
+        video.addEventListener('click', togglePlay);
+
+        // Progress Logic
+        video.addEventListener('timeupdate', () => {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressFilled.style.width = `${percent}%`;
+            
+            const currentMin = Math.floor(video.currentTime / 60);
+            const currentSec = Math.floor(video.currentTime % 60);
+            const durationMin = Math.floor(video.duration / 60) || 0;
+            const durationSec = Math.floor(video.duration % 60) || 0;
+            
+            timeDisplay.innerText = `${currentMin.toString().padStart(2, '0')}:${currentSec.toString().padStart(2, '0')} / ${durationMin.toString().padStart(2, '0')}:${durationSec.toString().padStart(2, '0')}`;
+        });
+
+        progressBar.addEventListener('click', (e) => {
+            const scrubTime = (e.offsetX / progressBar.offsetWidth) * video.duration;
+            video.currentTime = scrubTime;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            video.volume = e.target.value;
+        });
+
+        // Spracovanie nahraného súboru
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const objectURL = URL.createObjectURL(file);
+            
+            // Pridať do knižnice
+            addFileToLibrary(file.name, objectURL);
+            
+            // Spustiť okamžite
+            loadVideo(file.name, objectURL);
+            showNotification(`Súbor "${file.name}" bol načítaný.`);
+        });
+
+        function addFileToLibrary(name, url) {
+            const div = document.createElement('div');
+            div.className = 'movie-card glass-panel p-3 flex gap-3';
+            div.onclick = function() {
+                document.querySelectorAll('.movie-card').forEach(card => card.classList.remove('active-movie'));
+                div.classList.add('active-movie');
+                loadVideo(name, url);
+            };
+            
+            div.innerHTML = `
+                <div class="w-20 h-28 bg-cyan-900/20 rounded flex items-center justify-center shrink-0 border border-cyan-500/30">
+                    <span class="text-2xl">🎞</span>
+                </div>
+                <div>
+                    <span class="quality-badge mb-2 inline-block">LOCAL</span>
+                    <h4 class="font-bold text-sm truncate w-32">${name}</h4>
+                    <p class="text-xs text-gray-400 mt-1">Vlastný súbor</p>
+                </div>
+            `;
+            
+            libraryList.prepend(div);
+        }
+
+        function loadVideo(name, url) {
+            movieTitle.innerText = name;
+            movieMeta.innerText = "Miestny súbor • " + new Date().toLocaleDateString();
+            movieDesc.innerText = "Sledujete súbor priamo z vášho zariadenia. Externé metadáta nie sú k dispozícii.";
+            
+            video.src = url;
+            video.play();
+            playBtn.innerText = '⏸';
+        }
+
+        function setQuality(q) {
+            const currentTime = video.currentTime;
+            const isPlaying = !video.paused;
+            qualityBtn.innerText = q;
+            video.style.opacity = '0.5';
+            setTimeout(() => {
+                video.currentTime = currentTime;
+                if (isPlaying) video.play();
+                video.style.opacity = '1';
+                showNotification(`Kvalita zmenená na ${q}`);
+            }, 300);
+        }
+
+        function changeMovie(element, title, source) {
+            document.querySelectorAll('.movie-card').forEach(card => card.classList.remove('active-movie'));
+            element.classList.add('active-movie');
+            loadVideo(title, source);
+        }
+
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+            if (video.requestFullscreen) video.requestFullscreen();
+            else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        });
+
+        function showNotification(msg) {
+            const notify = document.createElement('div');
+            notify.className = 'fixed top-10 left-1/2 -translate-x-1/2 glass-panel px-6 py-2 border-l-4 border-cyan-400 z-50 shadow-2xl';
+            notify.innerHTML = `<span class="text-cyan-400 font-bold">SYSTÉM:</span> ${msg}`;
+            document.body.appendChild(notify);
+            setTimeout(() => {
+                notify.style.opacity = '0';
+                setTimeout(() => notify.remove(), 500);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
