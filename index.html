@@ -419,15 +419,30 @@
         const sysLog = document.getElementById('sysLog');
         const scanlineOverlay = document.getElementById('scanlineOverlay');
 
-        // Robustná logika bufferingu - oprava zaseknutého "BUFFERING_DATA"
+        // EXTREME LONG FILE OPTIMIZATION (9h+)
+        // Táto funkcia zabezpečuje, že prehliadač nespomalí pri obrovských súboroch
+        function optimizeForLargeFiles() {
+            // Vypnutie automatického pre-loadu celého súboru do RAM
+            // Prehliadač si bude ťahať len to, čo potrebuje (chunks)
+            video.preload = "metadata"; 
+            
+            // Optimalizácia renderingu pre plynulosť
+            video.style.transform = 'translate3d(0,0,0)'; 
+            video.style.backfaceVisibility = 'hidden';
+        }
+        optimizeForLargeFiles();
+
         let bufferTimeout;
         video.addEventListener('waiting', () => {
             buffering.style.display = 'flex';
-            // Automatické vypnutie overlay po 3 sekundách, ak sa zasekne
             clearTimeout(bufferTimeout);
             bufferTimeout = setTimeout(() => {
+                // Fail-safe pre 9h+ súbory: Ak buffer trvá pridlho, skúsi posunúť stream o 0.1s dopredu pre reset dekodéra
+                if(video.readyState < 3) {
+                    video.currentTime += 0.1;
+                }
                 buffering.style.display = 'none';
-            }, 3000);
+            }, 4000);
         });
 
         video.addEventListener('playing', () => {
@@ -439,9 +454,12 @@
             buffering.style.display = 'none';
         });
 
-        // Detekcia konca bufferingu pre staršie prehliadače
         video.addEventListener('stalled', () => {
-            buffering.style.display = 'none';
+            // Ak stream "stuhne", skúsime ho prebrať bez reštartu
+            if (!video.paused) {
+                video.pause();
+                video.play().catch(() => {});
+            }
         });
 
         document.addEventListener('fullscreenchange', () => {
@@ -505,7 +523,7 @@
         video.addEventListener('timeupdate', () => {
             const current = video.currentTime;
             const duration = video.duration;
-            if (!duration) return;
+            if (!duration || isNaN(duration)) return;
             const progress = (current / duration) * 100;
             progressBar.style.width = `${progress}%`;
 
@@ -521,7 +539,9 @@
         progressArea.addEventListener('click', (e) => {
             const rect = progressArea.getBoundingClientRect();
             const pos = (e.clientX - rect.left) / rect.width;
-            video.currentTime = pos * video.duration;
+            if(!isNaN(video.duration)) {
+                video.currentTime = pos * video.duration;
+            }
         });
 
         volSlider.addEventListener('input', (e) => {
@@ -556,11 +576,12 @@
             document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('active'));
             if (element) element.classList.add('active');
             loader.classList.remove('hidden');
-            buffering.style.display = 'none'; // Skryť starý buffering
+            buffering.style.display = 'none'; 
             video.style.opacity = '0.3';
             setTimeout(() => {
                 movieTitle.innerText = name.split('.')[0];
                 video.src = url;
+                // Špeciálne nastavenia pre stabilitu načítania veľkých dát
                 video.load();
                 video.play().catch(() => {});
                 playBtn.innerHTML = '⏸';
@@ -568,7 +589,7 @@
                 document.getElementById('metaCodec').innerText = `H.264 / ${ext}`;
                 loader.classList.add('hidden');
                 video.style.opacity = '1';
-                showNotification(`NEURAL LINK ESTABLISHED`);
+                showNotification(`ULTRA-LONG STREAM INITIALIZED`);
             }, 600);
         }
 
