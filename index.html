@@ -209,6 +209,8 @@
         .filter-gray { filter: grayscale(1); }
         .filter-sepia { filter: sepia(0.8); }
         .filter-high-contrast { filter: contrast(1.5) brightness(1.2); }
+        /* Nový kino filter: vyšší kontrast, jemná saturácia a ostrosť */
+        .filter-cinema { filter: contrast(1.1) saturate(1.2) brightness(1.05) drop-shadow(0 0 2px rgba(0,0,0,0.5)); transition: filter 0.5s ease; }
 
         .control-btn {
             background: rgba(255,255,255,0.05);
@@ -276,6 +278,7 @@
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
                                     <span class="text-[8px] cyber-font text-magenta-400">Filters_</span>
                                     <button onclick="setFilter('filter-normal')" class="control-btn">Default</button>
+                                    <button onclick="setFilter('filter-cinema')" class="control-btn border-yellow-500 text-yellow-400 shadow-[0_0_5px_rgba(234,179,8,0.3)]">Cinema 4K</button>
                                     <button onclick="setFilter('filter-gray')" class="control-btn">B&W</button>
                                     <button onclick="setFilter('filter-sepia')" class="control-btn">Retro</button>
                                     <button onclick="setFilter('filter-high-contrast')" class="control-btn">Contrast</button>
