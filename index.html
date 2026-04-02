@@ -226,12 +226,13 @@
         .buffering-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.6);
             display: none;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 15;
-            backdrop-filter: blur(5px);
+            z-index: 100;
+            backdrop-filter: blur(8px);
         }
     </style>
 </head>
@@ -264,10 +265,8 @@
                         <div class="scanlines" id="scanlineOverlay"></div>
                         
                         <div id="buffering" class="buffering-overlay">
-                            <div class="flex flex-col items-center">
-                                <div class="loader-ring mb-4"></div>
-                                <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse">BUFFERING_DATA</div>
-                            </div>
+                            <div class="loader-ring mb-4"></div>
+                            <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse uppercase">Syncing_Data_Stream</div>
                         </div>
 
                         <div id="loader" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 hidden">
@@ -392,7 +391,7 @@
                         <div class="text-[9px] mono-font text-gray-500 leading-tight" id="sysLog">
                             > Kernel initializing...<br>
                             > GPU sync established.<br>
-                            > Permissions check: VALIDATED.<br>
+                            > Buffering system: OPTIMIZED.<br>
                             > Neural link: READY.
                         </div>
                     </div>
@@ -420,15 +419,28 @@
         const sysLog = document.getElementById('sysLog');
         const scanlineOverlay = document.getElementById('scanlineOverlay');
 
+        // Robustná logika bufferingu - oprava zaseknutého "BUFFERING_DATA"
+        let bufferTimeout;
         video.addEventListener('waiting', () => {
             buffering.style.display = 'flex';
+            // Automatické vypnutie overlay po 3 sekundách, ak sa zasekne
+            clearTimeout(bufferTimeout);
+            bufferTimeout = setTimeout(() => {
+                buffering.style.display = 'none';
+            }, 3000);
         });
 
         video.addEventListener('playing', () => {
+            clearTimeout(bufferTimeout);
             buffering.style.display = 'none';
         });
 
         video.addEventListener('canplay', () => {
+            buffering.style.display = 'none';
+        });
+
+        // Detekcia konca bufferingu pre staršie prehliadače
+        video.addEventListener('stalled', () => {
             buffering.style.display = 'none';
         });
 
@@ -472,7 +484,6 @@
         });
 
         pipBtn.addEventListener('click', async () => {
-            // Použitie try-catch pre zamedzenie pádu pri reštrikciách Permission Policy
             try {
                 if (!document.pictureInPictureEnabled) {
                     showNotification("PiP NOT SUPPORTED");
@@ -484,7 +495,6 @@
                     await document.exitPictureInPicture();
                 }
             } catch (error) {
-                console.error("PiP Error:", error);
                 showNotification("BROWSER_RESTRICTION: PIP_BLOCKED");
             }
         });
@@ -495,6 +505,7 @@
         video.addEventListener('timeupdate', () => {
             const current = video.currentTime;
             const duration = video.duration;
+            if (!duration) return;
             const progress = (current / duration) * 100;
             progressBar.style.width = `${progress}%`;
 
@@ -504,7 +515,7 @@
                 const sec = Math.floor(s % 60);
                 return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
             };
-            timeDisplay.innerText = `${formatTime(current)} // ${formatTime(duration || 0)}`;
+            timeDisplay.innerText = `${formatTime(current)} // ${formatTime(duration)}`;
         });
 
         progressArea.addEventListener('click', (e) => {
@@ -545,6 +556,7 @@
             document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('active'));
             if (element) element.classList.add('active');
             loader.classList.remove('hidden');
+            buffering.style.display = 'none'; // Skryť starý buffering
             video.style.opacity = '0.3';
             setTimeout(() => {
                 movieTitle.innerText = name.split('.')[0];
@@ -556,7 +568,7 @@
                 document.getElementById('metaCodec').innerText = `H.264 / ${ext}`;
                 loader.classList.add('hidden');
                 video.style.opacity = '1';
-                showNotification(`NEURAL LINK ESTABLISHED: ${name.substring(0, 15)}...`);
+                showNotification(`NEURAL LINK ESTABLISHED`);
             }, 600);
         }
 
@@ -578,21 +590,15 @@
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         fullscreenBtn.addEventListener('click', () => {
             const container = document.getElementById('playerWrapper');
-            // Bezpečnejšie volanie fullscreenu pre zamedzenie Permission Policy chybám
             try {
                 if (!document.fullscreenElement) {
-                    const requestMethod = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen || container.msRequestFullscreen;
-                    if (requestMethod) {
-                        requestMethod.call(container).catch(e => {
-                            video.requestFullscreen().catch(() => {});
-                        });
-                    }
+                    if (container.requestFullscreen) container.requestFullscreen();
+                    else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
                 } else {
-                    const exitMethod = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-                    if (exitMethod) exitMethod.call(document);
+                    if (document.exitFullscreen) document.exitFullscreen();
                 }
             } catch (err) {
-                console.warn("Fullscreen toggle failed:", err);
+                showNotification("FULLSCREEN_ERR");
             }
         });
     </script>
