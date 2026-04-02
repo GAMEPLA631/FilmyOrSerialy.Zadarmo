@@ -152,7 +152,6 @@
             border-left: 4px solid var(--neon-cyan);
         }
 
-        /* Glitch Animation for text */
         .glitch-text:hover {
             animation: glitch 0.3s cubic-bezier(.25,.46,.45,.94) both infinite;
         }
@@ -182,15 +181,6 @@
             cursor: pointer;
         }
 
-        input[type="range"]::-moz-range-thumb {
-            width: 10px; height: 10px;
-            background: var(--neon-cyan);
-            box-shadow: 0 0 10px var(--neon-cyan);
-            cursor: pointer;
-            border: none;
-            border-radius: 0;
-        }
-
         .loader-ring {
             width: 80px; height: 80px;
             border: 2px solid transparent;
@@ -209,8 +199,13 @@
         .filter-gray { filter: grayscale(1); }
         .filter-sepia { filter: sepia(0.8); }
         .filter-high-contrast { filter: contrast(1.5) brightness(1.2); }
-        /* Nový kino filter: vyšší kontrast, jemná saturácia a ostrosť */
         .filter-cinema { filter: contrast(1.1) saturate(1.2) brightness(1.05) drop-shadow(0 0 2px rgba(0,0,0,0.5)); transition: filter 0.5s ease; }
+        
+        /* Nový High-Performance 1080p filter - bez sekania */
+        .filter-1080p { 
+            filter: contrast(1.15) brightness(1.05) saturate(1.1); 
+            transition: filter 0.3s ease; 
+        }
 
         .control-btn {
             background: rgba(255,255,255,0.05);
@@ -273,14 +268,14 @@
                         <!-- Cyber Controls -->
                         <div class="absolute bottom-0 left-0 w-full p-8 z-30 bg-gradient-to-t from-black/90 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500">
                             
-                            <!-- New: Secondary Control Bar (Filters and Speed) -->
+                            <!-- Filter and Speed Bar -->
                             <div class="flex flex-wrap gap-2 mb-4">
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
                                     <span class="text-[8px] cyber-font text-magenta-400">Filters_</span>
                                     <button onclick="setFilter('filter-normal')" class="control-btn">Default</button>
-                                    <button onclick="setFilter('filter-cinema')" class="control-btn border-yellow-500 text-yellow-400 shadow-[0_0_5px_rgba(234,179,8,0.3)]">Cinema 4K</button>
+                                    <button onclick="setFilter('filter-1080p')" class="control-btn border-cyan-400 text-cyan-400">1080p Smooth</button>
+                                    <button onclick="setFilter('filter-cinema')" class="control-btn border-yellow-500 text-yellow-400">Cinema 4K</button>
                                     <button onclick="setFilter('filter-gray')" class="control-btn">B&W</button>
-                                    <button onclick="setFilter('filter-sepia')" class="control-btn">Retro</button>
                                     <button onclick="setFilter('filter-high-contrast')" class="control-btn">Contrast</button>
                                 </div>
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
@@ -373,7 +368,6 @@
                     <h3 class="cyber-font text-sm font-bold tracking-[0.4em] mb-8 text-cyan-400 uppercase">Data_Storage</h3>
                     
                     <div class="space-y-3" id="movieLibrary">
-                        <!-- Default entry -->
                         <div class="movie-card active p-4 cursor-pointer relative group" onclick="loadVideo('Big Buck Bunny', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', this)">
                             <div class="absolute right-2 top-2 text-[8px] mono-font text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity">ID: 001-X</div>
                             <h4 class="cyber-font text-xs font-bold truncate pr-8">BIG_BUCK_BUNNY.MP4</h4>
@@ -388,9 +382,8 @@
                         <div class="text-[9px] cyber-font text-cyan-500 mb-2">SYSTEM_LOG</div>
                         <div class="text-[9px] mono-font text-gray-500 leading-tight" id="sysLog">
                             > Kernel initializing...<br>
-                            > Interface layer loaded.<br>
                             > GPU sync established.<br>
-                            > Filters: READY.<br>
+                            > 1080p_Smooth_Mod: ENABLED.<br>
                             > Neural link: READY.
                         </div>
                     </div>
@@ -416,14 +409,12 @@
         const metaSpeed = document.getElementById('metaSpeed');
         const sysLog = document.getElementById('sysLog');
 
-        // Background interactivity
         document.addEventListener('mousemove', (e) => {
             const moveX = (e.clientX - window.innerWidth / 2) / 100;
             const moveY = (e.clientY - window.innerHeight / 2) / 100;
             gridBg.style.transform = `rotateX(${20 - moveY}deg) rotateY(${moveX}deg) translateZ(0)`;
         });
 
-        // Core Player Functions
         function togglePlay() {
             if (video.paused) {
                 video.play();
@@ -497,11 +488,9 @@
             video.volume = e.target.value;
         });
 
-        // File Loading
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const url = URL.createObjectURL(file);
             addToLibrary(file.name, url);
             loadVideo(file.name, url);
@@ -511,7 +500,6 @@
             const div = document.createElement('div');
             div.className = 'movie-card p-4 cursor-pointer relative group opacity-0 translate-y-4 transition-all duration-500';
             div.onclick = function() { loadVideo(name, url, this); };
-            
             div.innerHTML = `
                 <div class="absolute right-2 top-2 text-[8px] mono-font text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity">ID: NEW-X</div>
                 <h4 class="cyber-font text-xs font-bold truncate pr-8 uppercase">${name}</h4>
@@ -520,33 +508,25 @@
                     <span class="text-[10px] text-magenta-500">Disc</span>
                 </div>
             `;
-            
             library.prepend(div);
-            setTimeout(() => {
-                div.classList.remove('opacity-0', 'translate-y-4');
-            }, 50);
+            setTimeout(() => div.classList.remove('opacity-0', 'translate-y-4'), 50);
         }
 
         function loadVideo(name, url, element) {
             document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('active'));
             if (element) element.classList.add('active');
-            
             loader.classList.remove('hidden');
             video.style.opacity = '0.3';
-            
             setTimeout(() => {
                 movieTitle.innerText = name.split('.')[0];
                 video.src = url;
                 video.load();
                 video.play();
                 playBtn.innerHTML = '⏸';
-                
                 const ext = name.split('.').pop().toUpperCase();
                 document.getElementById('metaCodec').innerText = `H.264 / ${ext}`;
-                
                 loader.classList.add('hidden');
                 video.style.opacity = '1';
-                
                 showNotification(`NEURAL LINK ESTABLISHED: ${name.substring(0, 15)}...`);
                 logUpdate(`Mounted: ${name}`);
             }, 600);
@@ -578,12 +558,6 @@
         document.getElementById('fullscreenBtn').addEventListener('click', () => {
             if (video.requestFullscreen) video.requestFullscreen();
             else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
-        });
-
-        // Error handling
-        video.addEventListener('error', () => {
-            loader.classList.add('hidden');
-            showNotification("PROTOCOL_ERROR: CODEC_INCOMPATIBLE");
         });
     </script>
 
