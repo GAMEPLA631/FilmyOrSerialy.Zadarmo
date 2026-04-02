@@ -74,6 +74,7 @@
             border: 1px solid rgba(0, 243, 255, 0.3);
             box-shadow: 0 0 50px rgba(0, 0, 0, 1), 0 0 20px rgba(0, 243, 255, 0.1);
             overflow: hidden;
+            transform: translateZ(0);
         }
 
         .scanlines {
@@ -193,17 +194,18 @@
 
         #fileInput { display: none; }
 
-        /* Video Filters - Optimized with will-change for better performance */
         #mainVideo {
             will-change: transform, filter;
             object-fit: contain;
+            image-rendering: -webkit-optimize-contrast;
+            transform: translateZ(0);
         }
 
         .filter-normal { filter: none; }
         .filter-gray { filter: grayscale(1); }
         .filter-sepia { filter: sepia(0.8); }
         .filter-high-contrast { filter: contrast(1.5) brightness(1.2); }
-        .filter-cinema { filter: contrast(1.1) saturate(1.2) brightness(1.05) drop-shadow(0 0 2px rgba(0,0,0,0.5)); transition: filter 0.5s ease; }
+        .filter-cinema { filter: contrast(1.1) saturate(1.2) brightness(1.05); transition: filter 0.5s ease; }
         .filter-1080p { filter: contrast(1.15) brightness(1.05) saturate(1.1); transition: filter 0.3s ease; }
 
         .control-btn {
@@ -221,7 +223,6 @@
             border-color: var(--neon-cyan);
         }
 
-        /* Buffer Overlay */
         .buffering-overlay {
             position: absolute;
             inset: 0;
@@ -260,9 +261,8 @@
             <div class="xl:col-span-9 space-y-12">
                 <div class="glass-panel p-2">
                     <div class="video-container relative" id="playerWrapper">
-                        <div class="scanlines"></div>
+                        <div class="scanlines" id="scanlineOverlay"></div>
                         
-                        <!-- Buffering Indicator -->
                         <div id="buffering" class="buffering-overlay">
                             <div class="flex flex-col items-center">
                                 <div class="loader-ring mb-4"></div>
@@ -270,13 +270,11 @@
                             </div>
                         </div>
 
-                        <!-- Neural Loader -->
                         <div id="loader" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 hidden">
                             <div class="loader-ring mb-4"></div>
                             <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse">SYNCHRONIZING_BUFFERS</div>
                         </div>
 
-                        <!-- Preload set to auto for better buffering -->
                         <video id="mainVideo" class="w-full h-full filter-normal" playsinline crossorigin="anonymous" preload="auto">
                             <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
                         </video>
@@ -394,7 +392,7 @@
                         <div class="text-[9px] mono-font text-gray-500 leading-tight" id="sysLog">
                             > Kernel initializing...<br>
                             > GPU sync established.<br>
-                            > Preload buffering: ACTIVE.<br>
+                            > Permissions check: VALIDATED.<br>
                             > Neural link: READY.
                         </div>
                     </div>
@@ -420,11 +418,10 @@
         const pipBtn = document.getElementById('pipBtn');
         const metaSpeed = document.getElementById('metaSpeed');
         const sysLog = document.getElementById('sysLog');
+        const scanlineOverlay = document.getElementById('scanlineOverlay');
 
-        // Buffering Logic
         video.addEventListener('waiting', () => {
             buffering.style.display = 'flex';
-            logUpdate("Buffer depletion detected. Waiting...");
         });
 
         video.addEventListener('playing', () => {
@@ -435,6 +432,14 @@
             buffering.style.display = 'none';
         });
 
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                scanlineOverlay.style.display = 'none';
+            } else {
+                scanlineOverlay.style.display = 'block';
+            }
+        });
+
         document.addEventListener('mousemove', (e) => {
             const moveX = (e.clientX - window.innerWidth / 2) / 100;
             const moveY = (e.clientY - window.innerHeight / 2) / 100;
@@ -443,24 +448,20 @@
 
         function togglePlay() {
             if (video.paused) {
-                video.play();
+                video.play().catch(() => {});
                 playBtn.innerHTML = '⏸';
-                logUpdate("Stream playback started");
             } else {
                 video.pause();
                 playBtn.innerHTML = '▶';
-                logUpdate("Stream suspended");
             }
         }
 
         function skip(seconds) {
             video.currentTime += seconds;
-            logUpdate(`Jump ${seconds > 0 ? '+' : ''}${seconds}s`);
         }
 
         function setFilter(filterClass) {
             video.className = `w-full h-full ${filterClass}`;
-            logUpdate(`Filter updated: ${filterClass.split('-')[1]}`);
             showNotification(`MOD_APPLIED: ${filterClass.split('-')[1].toUpperCase()}`);
         }
 
@@ -468,21 +469,23 @@
             const speed = parseFloat(e.target.value);
             video.playbackRate = speed;
             metaSpeed.innerText = speed.toFixed(1) + 'x';
-            logUpdate(`Clock sync: ${speed}x`);
-            showNotification(`SYNC_ADJUSTED: ${speed}x`);
         });
 
         pipBtn.addEventListener('click', async () => {
+            // Použitie try-catch pre zamedzenie pádu pri reštrikciách Permission Policy
             try {
+                if (!document.pictureInPictureEnabled) {
+                    showNotification("PiP NOT SUPPORTED");
+                    return;
+                }
                 if (video !== document.pictureInPictureElement) {
                     await video.requestPictureInPicture();
-                    logUpdate("Hologram PiP initiated");
                 } else {
                     await document.exitPictureInPicture();
-                    logUpdate("Hologram PiP terminated");
                 }
             } catch (error) {
-                showNotification("SYSTEM_ERR: PIP_FAIL");
+                console.error("PiP Error:", error);
+                showNotification("BROWSER_RESTRICTION: PIP_BLOCKED");
             }
         });
 
@@ -547,23 +550,14 @@
                 movieTitle.innerText = name.split('.')[0];
                 video.src = url;
                 video.load();
-                video.play();
+                video.play().catch(() => {});
                 playBtn.innerHTML = '⏸';
                 const ext = name.split('.').pop().toUpperCase();
                 document.getElementById('metaCodec').innerText = `H.264 / ${ext}`;
                 loader.classList.add('hidden');
                 video.style.opacity = '1';
                 showNotification(`NEURAL LINK ESTABLISHED: ${name.substring(0, 15)}...`);
-                logUpdate(`Mounted: ${name}`);
             }, 600);
-        }
-
-        function logUpdate(msg) {
-            const timestamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
-            const line = document.createElement('div');
-            line.innerHTML = `> [${timestamp}] ${msg}`;
-            sysLog.prepend(line);
-            if (sysLog.children.length > 8) sysLog.lastElementChild.remove();
         }
 
         function showNotification(msg) {
@@ -581,9 +575,25 @@
             }, 3000);
         }
 
-        document.getElementById('fullscreenBtn').addEventListener('click', () => {
-            if (video.requestFullscreen) video.requestFullscreen();
-            else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        fullscreenBtn.addEventListener('click', () => {
+            const container = document.getElementById('playerWrapper');
+            // Bezpečnejšie volanie fullscreenu pre zamedzenie Permission Policy chybám
+            try {
+                if (!document.fullscreenElement) {
+                    const requestMethod = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen || container.msRequestFullscreen;
+                    if (requestMethod) {
+                        requestMethod.call(container).catch(e => {
+                            video.requestFullscreen().catch(() => {});
+                        });
+                    }
+                } else {
+                    const exitMethod = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                    if (exitMethod) exitMethod.call(document);
+                }
+            } catch (err) {
+                console.warn("Fullscreen toggle failed:", err);
+            }
         });
     </script>
 
