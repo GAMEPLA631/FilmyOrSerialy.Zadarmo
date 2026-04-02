@@ -27,7 +27,6 @@
                 radial-gradient(circle at 80% 70%, rgba(0, 243, 255, 0.1) 0%, transparent 50%);
         }
 
-        /* Cyber Grid Background */
         .grid-bg {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -74,9 +73,9 @@
             background: #000;
             border: 1px solid rgba(0, 243, 255, 0.3);
             box-shadow: 0 0 50px rgba(0, 0, 0, 1), 0 0 20px rgba(0, 243, 255, 0.1);
+            overflow: hidden;
         }
 
-        /* Scanlines Overlay */
         .scanlines {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -194,18 +193,18 @@
 
         #fileInput { display: none; }
 
-        /* Video Filters */
+        /* Video Filters - Optimized with will-change for better performance */
+        #mainVideo {
+            will-change: transform, filter;
+            object-fit: contain;
+        }
+
         .filter-normal { filter: none; }
         .filter-gray { filter: grayscale(1); }
         .filter-sepia { filter: sepia(0.8); }
         .filter-high-contrast { filter: contrast(1.5) brightness(1.2); }
         .filter-cinema { filter: contrast(1.1) saturate(1.2) brightness(1.05) drop-shadow(0 0 2px rgba(0,0,0,0.5)); transition: filter 0.5s ease; }
-        
-        /* Nový High-Performance 1080p filter - bez sekania */
-        .filter-1080p { 
-            filter: contrast(1.15) brightness(1.05) saturate(1.1); 
-            transition: filter 0.3s ease; 
-        }
+        .filter-1080p { filter: contrast(1.15) brightness(1.05) saturate(1.1); transition: filter 0.3s ease; }
 
         .control-btn {
             background: rgba(255,255,255,0.05);
@@ -221,13 +220,24 @@
             background: rgba(0, 243, 255, 0.2);
             border-color: var(--neon-cyan);
         }
+
+        /* Buffer Overlay */
+        .buffering-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body class="p-6 md:p-12">
     <div class="grid-bg" id="gridBg"></div>
 
     <div class="max-w-[1600px] mx-auto">
-        <!-- Header Section -->
         <header class="flex flex-col lg:flex-row justify-between items-end mb-16 gap-8">
             <div class="relative">
                 <div class="absolute -top-6 -left-4 text-[10px] mono-font text-cyan-500/50 tracking-[0.5em] uppercase">Status: Neural Link Active</div>
@@ -246,29 +256,32 @@
             </div>
         </header>
 
-        <!-- Main Workspace -->
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-12">
-            
-            <!-- Player Section -->
             <div class="xl:col-span-9 space-y-12">
                 <div class="glass-panel p-2">
                     <div class="video-container relative" id="playerWrapper">
                         <div class="scanlines"></div>
                         
+                        <!-- Buffering Indicator -->
+                        <div id="buffering" class="buffering-overlay">
+                            <div class="flex flex-col items-center">
+                                <div class="loader-ring mb-4"></div>
+                                <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse">BUFFERING_DATA</div>
+                            </div>
+                        </div>
+
                         <!-- Neural Loader -->
                         <div id="loader" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 hidden">
                             <div class="loader-ring mb-4"></div>
                             <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse">SYNCHRONIZING_BUFFERS</div>
                         </div>
 
-                        <video id="mainVideo" class="w-full h-full filter-normal" playsinline crossorigin="anonymous">
+                        <!-- Preload set to auto for better buffering -->
+                        <video id="mainVideo" class="w-full h-full filter-normal" playsinline crossorigin="anonymous" preload="auto">
                             <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
                         </video>
 
-                        <!-- Cyber Controls -->
                         <div class="absolute bottom-0 left-0 w-full p-8 z-30 bg-gradient-to-t from-black/90 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500">
-                            
-                            <!-- Filter and Speed Bar -->
                             <div class="flex flex-wrap gap-2 mb-4">
                                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
                                     <span class="text-[8px] cyber-font text-magenta-400">Filters_</span>
@@ -325,7 +338,6 @@
                     </div>
                 </div>
 
-                <!-- Info Panel -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div class="md:col-span-2 glass-panel p-10">
                         <div class="flex items-center gap-4 mb-6">
@@ -362,7 +374,6 @@
                 </div>
             </div>
 
-            <!-- Library Section -->
             <div class="xl:col-span-3">
                 <div class="glass-panel p-6 h-full border-l-2 border-l-cyan-500/30">
                     <h3 class="cyber-font text-sm font-bold tracking-[0.4em] mb-8 text-cyan-400 uppercase">Data_Storage</h3>
@@ -383,7 +394,7 @@
                         <div class="text-[9px] mono-font text-gray-500 leading-tight" id="sysLog">
                             > Kernel initializing...<br>
                             > GPU sync established.<br>
-                            > 1080p_Smooth_Mod: ENABLED.<br>
+                            > Preload buffering: ACTIVE.<br>
                             > Neural link: READY.
                         </div>
                     </div>
@@ -403,11 +414,26 @@
         const fileInput = document.getElementById('fileInput');
         const library = document.getElementById('movieLibrary');
         const loader = document.getElementById('loader');
+        const buffering = document.getElementById('buffering');
         const gridBg = document.getElementById('gridBg');
         const speedControl = document.getElementById('speedControl');
         const pipBtn = document.getElementById('pipBtn');
         const metaSpeed = document.getElementById('metaSpeed');
         const sysLog = document.getElementById('sysLog');
+
+        // Buffering Logic
+        video.addEventListener('waiting', () => {
+            buffering.style.display = 'flex';
+            logUpdate("Buffer depletion detected. Waiting...");
+        });
+
+        video.addEventListener('playing', () => {
+            buffering.style.display = 'none';
+        });
+
+        video.addEventListener('canplay', () => {
+            buffering.style.display = 'none';
+        });
 
         document.addEventListener('mousemove', (e) => {
             const moveX = (e.clientX - window.innerWidth / 2) / 100;
