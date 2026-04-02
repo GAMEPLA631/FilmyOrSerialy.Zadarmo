@@ -168,14 +168,14 @@
 
         input[type="range"] {
             -webkit-appearance: none;
-            appearance: none; /* Pridané pre kompatibilitu */
+            appearance: none;
             background: rgba(255,255,255,0.1);
             height: 2px;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none; /* Pridané pre kompatibilitu */
+            appearance: none;
             width: 10px; height: 10px;
             background: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -203,6 +203,27 @@
         @keyframes rotate { to { transform: rotate(360deg); } }
 
         #fileInput { display: none; }
+
+        /* Video Filters */
+        .filter-normal { filter: none; }
+        .filter-gray { filter: grayscale(1); }
+        .filter-sepia { filter: sepia(0.8); }
+        .filter-high-contrast { filter: contrast(1.5) brightness(1.2); }
+
+        .control-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #fff;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 243, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
     </style>
 </head>
 <body class="p-6 md:p-12">
@@ -243,19 +264,45 @@
                             <div class="cyber-font text-cyan-400 text-[10px] tracking-[0.3em] animate-pulse">SYNCHRONIZING_BUFFERS</div>
                         </div>
 
-                        <video id="mainVideo" class="w-full h-full" playsinline crossorigin="anonymous">
+                        <video id="mainVideo" class="w-full h-full filter-normal" playsinline crossorigin="anonymous">
                             <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
                         </video>
 
                         <!-- Cyber Controls -->
                         <div class="absolute bottom-0 left-0 w-full p-8 z-30 bg-gradient-to-t from-black/90 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500">
+                            
+                            <!-- New: Secondary Control Bar (Filters and Speed) -->
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
+                                    <span class="text-[8px] cyber-font text-magenta-400">Filters_</span>
+                                    <button onclick="setFilter('filter-normal')" class="control-btn">Default</button>
+                                    <button onclick="setFilter('filter-gray')" class="control-btn">B&W</button>
+                                    <button onclick="setFilter('filter-sepia')" class="control-btn">Retro</button>
+                                    <button onclick="setFilter('filter-high-contrast')" class="control-btn">Contrast</button>
+                                </div>
+                                <div class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-white/5">
+                                    <span class="text-[8px] cyber-font text-cyan-400">Sync_Speed_</span>
+                                    <select id="speedControl" class="bg-transparent text-[10px] text-white mono-font border-none outline-none cursor-pointer">
+                                        <option value="0.5" class="bg-slate-900">0.5x</option>
+                                        <option value="1" class="bg-slate-900" selected>1.0x</option>
+                                        <option value="1.5" class="bg-slate-900">1.5x</option>
+                                        <option value="2" class="bg-slate-900">2.0x</option>
+                                    </select>
+                                </div>
+                                <button id="pipBtn" class="control-btn cyber-font">PiP_Mode</button>
+                            </div>
+
                             <div class="progress-bar-container" id="progressArea">
                                 <div class="progress-bar-fill" id="progressBar"></div>
                             </div>
 
                             <div class="flex justify-between items-center">
                                 <div class="flex items-center gap-10">
-                                    <button id="playBtn" class="text-white hover:text-cyan-400 transition-all transform hover:scale-125 text-2xl">▶</button>
+                                    <div class="flex items-center gap-4">
+                                        <button onclick="skip(-10)" class="text-white/60 hover:text-white text-xs">« 10s</button>
+                                        <button id="playBtn" class="text-white hover:text-cyan-400 transition-all transform hover:scale-125 text-2xl">▶</button>
+                                        <button onclick="skip(10)" class="text-white/60 hover:text-white text-xs">10s »</button>
+                                    </div>
                                     <div class="mono-font text-xs tracking-widest text-cyan-500/80" id="timeDisplay">00:00:00 // 00:00:00</div>
                                     <div class="flex items-center gap-4">
                                         <span class="text-[10px] cyber-font text-gray-500 uppercase">Vol_</span>
@@ -265,12 +312,12 @@
 
                                 <div class="flex items-center gap-6">
                                     <div class="hidden md:flex flex-col items-end mr-4">
-                                        <span class="text-[8px] mono-font text-cyan-600">ENGINE_STABILITY</span>
+                                        <span class="text-[8px] mono-font text-cyan-600">SIGNAL_INTEGRITY</span>
                                         <div class="flex gap-1 mt-1">
-                                            <div class="w-4 h-1 bg-cyan-400"></div>
-                                            <div class="w-4 h-1 bg-cyan-400"></div>
-                                            <div class="w-4 h-1 bg-cyan-400"></div>
-                                            <div class="w-4 h-1 bg-gray-800"></div>
+                                            <div id="sig-1" class="w-4 h-1 bg-cyan-400"></div>
+                                            <div id="sig-2" class="w-4 h-1 bg-cyan-400"></div>
+                                            <div id="sig-3" class="w-4 h-1 bg-cyan-400"></div>
+                                            <div id="sig-4" class="w-4 h-1 bg-gray-800"></div>
                                         </div>
                                     </div>
                                     <button id="fullscreenBtn" class="text-white hover:text-cyan-400 text-xl">⛶</button>
@@ -301,8 +348,8 @@
                                     <span class="text-xs mono-font" id="metaCodec">H.264 / AVC</span>
                                 </div>
                                 <div class="flex justify-between border-b border-white/5 pb-2">
-                                    <span class="text-xs text-gray-500 uppercase">Frame_Rate</span>
-                                    <span class="text-xs mono-font">24.00 FPS</span>
+                                    <span class="text-xs text-gray-500 uppercase">Playback_Speed</span>
+                                    <span class="text-xs mono-font" id="metaSpeed">1.0x</span>
                                 </div>
                                 <div class="flex justify-between border-b border-white/5 pb-2">
                                     <span class="text-xs text-gray-500 uppercase">Security</span>
@@ -311,7 +358,7 @@
                             </div>
                         </div>
                         <div class="mt-8">
-                            <div class="text-[8px] mono-font text-gray-600 text-center italic">Hardware Acceleration: ENABLED</div>
+                            <div class="text-[8px] mono-font text-gray-600 text-center italic">Neural Engine v5.1: STABLE</div>
                         </div>
                     </div>
                 </div>
@@ -336,11 +383,12 @@
 
                     <div class="mt-12 p-4 border border-cyan-500/10 bg-cyan-500/5">
                         <div class="text-[9px] cyber-font text-cyan-500 mb-2">SYSTEM_LOG</div>
-                        <div class="text-[9px] mono-font text-gray-500 leading-tight">
+                        <div class="text-[9px] mono-font text-gray-500 leading-tight" id="sysLog">
                             > Kernel initializing...<br>
                             > Interface layer loaded.<br>
                             > GPU sync established.<br>
-                            > Ready for user input.
+                            > Filters: READY.<br>
+                            > Neural link: READY.
                         </div>
                     </div>
                 </div>
@@ -360,6 +408,10 @@
         const library = document.getElementById('movieLibrary');
         const loader = document.getElementById('loader');
         const gridBg = document.getElementById('gridBg');
+        const speedControl = document.getElementById('speedControl');
+        const pipBtn = document.getElementById('pipBtn');
+        const metaSpeed = document.getElementById('metaSpeed');
+        const sysLog = document.getElementById('sysLog');
 
         // Background interactivity
         document.addEventListener('mousemove', (e) => {
@@ -373,11 +425,46 @@
             if (video.paused) {
                 video.play();
                 playBtn.innerHTML = '⏸';
+                logUpdate("Stream playback started");
             } else {
                 video.pause();
                 playBtn.innerHTML = '▶';
+                logUpdate("Stream suspended");
             }
         }
+
+        function skip(seconds) {
+            video.currentTime += seconds;
+            logUpdate(`Jump ${seconds > 0 ? '+' : ''}${seconds}s`);
+        }
+
+        function setFilter(filterClass) {
+            video.className = `w-full h-full ${filterClass}`;
+            logUpdate(`Filter updated: ${filterClass.split('-')[1]}`);
+            showNotification(`MOD_APPLIED: ${filterClass.split('-')[1].toUpperCase()}`);
+        }
+
+        speedControl.addEventListener('change', (e) => {
+            const speed = parseFloat(e.target.value);
+            video.playbackRate = speed;
+            metaSpeed.innerText = speed.toFixed(1) + 'x';
+            logUpdate(`Clock sync: ${speed}x`);
+            showNotification(`SYNC_ADJUSTED: ${speed}x`);
+        });
+
+        pipBtn.addEventListener('click', async () => {
+            try {
+                if (video !== document.pictureInPictureElement) {
+                    await video.requestPictureInPicture();
+                    logUpdate("Hologram PiP initiated");
+                } else {
+                    await document.exitPictureInPicture();
+                    logUpdate("Hologram PiP terminated");
+                }
+            } catch (error) {
+                showNotification("SYSTEM_ERR: PIP_FAIL");
+            }
+        });
 
         playBtn.addEventListener('click', togglePlay);
         video.addEventListener('click', togglePlay);
@@ -438,7 +525,6 @@
         }
 
         function loadVideo(name, url, element) {
-            // UI Updates
             document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('active'));
             if (element) element.classList.add('active');
             
@@ -452,7 +538,6 @@
                 video.play();
                 playBtn.innerHTML = '⏸';
                 
-                // Meta update
                 const ext = name.split('.').pop().toUpperCase();
                 document.getElementById('metaCodec').innerText = `H.264 / ${ext}`;
                 
@@ -460,10 +545,18 @@
                 video.style.opacity = '1';
                 
                 showNotification(`NEURAL LINK ESTABLISHED: ${name.substring(0, 15)}...`);
+                logUpdate(`Mounted: ${name}`);
             }, 600);
         }
 
-        // System Notifications
+        function logUpdate(msg) {
+            const timestamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
+            const line = document.createElement('div');
+            line.innerHTML = `> [${timestamp}] ${msg}`;
+            sysLog.prepend(line);
+            if (sysLog.children.length > 8) sysLog.lastElementChild.remove();
+        }
+
         function showNotification(msg) {
             const n = document.createElement('div');
             n.className = 'fixed top-10 right-10 glass-panel p-4 border-l-4 border-cyan-400 z-[100] animate-bounce-in shadow-2xl';
